@@ -16,7 +16,14 @@ import com.itextpdf.text.pdf.PdfCopy;
 import com.itextpdf.text.pdf.PdfImportedPage;
 import com.itextpdf.text.pdf.PdfReader;
 import com.itextpdf.text.pdf.PdfSmartCopy;
+/*
+https://codertw.com/%E7%A8%8B%E5%BC%8F%E8%AA%9E%E8%A8%80/547722/
+https://blog.csdn.net/z446981439/article/details/103994221
+https://vimsky.com/zh-tw/examples/detail/java-class-com.itextpdf.text.pdf.ColumnText.html
 
+iText Doc
+https://api.itextpdf.com/iText5/java/5.5.13.2/
+*/
 public class combinePDFaddFooter {
 
 	
