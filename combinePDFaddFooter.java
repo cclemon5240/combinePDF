@@ -21,6 +21,9 @@ https://codertw.com/%E7%A8%8B%E5%BC%8F%E8%AA%9E%E8%A8%80/547722/
 https://blog.csdn.net/z446981439/article/details/103994221
 https://vimsky.com/zh-tw/examples/detail/java-class-com.itextpdf.text.pdf.ColumnText.html
 
+skip ssl verify
+https://nakov.com/blog/2009/07/16/disable-certificate-validation-in-java-ssl-connections/
+
 iText Doc
 https://api.itextpdf.com/iText5/java/5.5.13.2/
 */
@@ -31,7 +34,35 @@ public class combinePDFaddFooter {
 		System.out.println("Start!!!");
 		String[] files = {"/Users/ricktseng/a.pdf", "/Users/ricktseng/createSamplePDF2.pdf"};
 		try {
+			// Create a trust manager that does not validate certificate chains
+			TrustManager[] trustAllCerts = new TrustManager[] {new X509TrustManager() {
+				public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+					return null;
+				}
+				public void checkClientTrusted(X509Certificate[] certs, String authType) {
+				}
+				public void checkServerTrusted(X509Certificate[] certs, String authType) {
+				}
+			}
+			};
+			
+			// Install the all-trusting trust manager
+			SSLContext sc = SSLContext.getInstance("SSL");
+			sc.init(null, trustAllCerts, new java.security.SecureRandom());
+			HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+			
+			// Create all-trusting host name verifier
+			HostnameVerifier allHostsValid = new HostnameVerifier() {
+				public boolean verify(String hostname, SSLSession session) {
+					return true;
+				}
+			};
+			
+			// Install the all-trusting host verifier
+			HttpsURLConnection.setDefaultHostnameVerifier(allHostsValid);
 			Document document = new Document();
+//			PdfReader readUrl = new PdfReader("https://cathaybk.moneydj.com/w/CustFundIDMap.djhtm?FUNDID=001B011&DownFile=8");
+			PdfReader readUrl = new PdfReader(new URL("https://cathaybk.moneydj.com/w/CustFundIDMap.djhtm?FUNDID=0001B011&DownFile=8"));
 			PdfCopy copy = new PdfSmartCopy(document, new FileOutputStream("/Users/ricktseng/combinePDF.pdf"));
 			PdfImportedPage page;
 			PdfCopy.PageStamp stamp;
@@ -44,7 +75,10 @@ public class combinePDFaddFooter {
 	            copy.freeReader(reader[i]);
 	            reader[i].close();
 	        }
+			copy.addDocument(readUrl);
+			copy.freeReader(readUrl);
 			document.close();
+			readUrl.close();
 			PdfReader reader2 = new PdfReader("/Users/ricktseng/combinePDF.pdf");
 			copy = new PdfSmartCopy(document, new FileOutputStream("/Users/ricktseng/combinePDFaddFooter.pdf"));
 			document.open();
@@ -69,6 +103,12 @@ public class combinePDFaddFooter {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (NoSuchAlgorithmException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (KeyManagementException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} 
