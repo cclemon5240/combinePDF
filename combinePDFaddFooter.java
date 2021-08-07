@@ -1,8 +1,6 @@
 package test;
 
 import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -67,10 +65,10 @@ public class combinePDFaddFooter {
 		final String urlPath1 = "https://cathaybk.moneydj.com/w/CustFundIDMap.djhtm?FUNDID=0001B011&DownFile=8";
 		final String fmt = "UTF-8";
 		try {
-			//第一次GET
+			//第一次詢問(GET)
 			HtmlStructure gethtmlStructure1 = getHTMLbyGet(urlPath1, fmt);
 			String urlPath2 = gethtmlStructure1.getHtmlContent().substring(gethtmlStructure1.getHtmlContent().indexOf("'") + 1, gethtmlStructure1.getHtmlContent().lastIndexOf("'")); 
-			//第二次GET
+			//第二次詢問(GET)
 			HtmlStructure gethtmlStructure = getHTMLbyGet(urlPath2, fmt);
 			
 			//取得回應form的參數
@@ -98,59 +96,48 @@ public class combinePDFaddFooter {
 					parameters.add(new BasicNameValuePair(key, val));
 				}
 			}
-			//SSL驗證跳過
-			PoolingHttpClientConnectionManager connManager = ConnectionManagerBuilder();
+			
 			//Cookie設定
 			BasicCookieStore cookieStore = new BasicCookieStore();
 		    BasicClientCookie cookie = new BasicClientCookie(gethtmlStructure.getCustomCookie().getName(),gethtmlStructure.getCustomCookie().getValue());
 		    cookie.setDomain(gethtmlStructure.getCustomCookie().getDomain());
 		    cookie.setPath("/");
 		    cookieStore.addCookie(cookie);
-			CloseableHttpClient httpclient = HttpClients.custom().setConnectionManager(connManager).setDefaultCookieStore(cookieStore).build();
+			//第三次詢問(POST)
 			HttpPost httpPost = new HttpPost(urlPath3);
-			UrlEncodedFormEntity formEntity = new UrlEncodedFormEntity(parameters);
-			httpPost.setEntity(formEntity);
+			httpPost.setEntity(new UrlEncodedFormEntity(parameters));
 			httpPost.addHeader("Content-type", "application/x-www-form-urlencoded; charset=utf-8");
 			httpPost.setHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.61 Safari/537.36");
-			CloseableHttpResponse response = null;
-	        try {
-	            response = httpclient.execute(httpPost);
+			byte[] backEndLoadPdf = null;
+	        try (PoolingHttpClientConnectionManager connManager = ConnectionManagerBuilder();
+	        		CloseableHttpClient httpclient = HttpClients.custom().setConnectionManager(connManager).setDefaultCookieStore(cookieStore).build();
+	        		CloseableHttpResponse response = httpclient.execute(httpPost);) {
 	            if (response.getStatusLine().getStatusCode() == 200) {
-//	            	String content = EntityUtils.toString(response.getEntity(), "UTF-8");
 	                BufferedInputStream bis = new BufferedInputStream(response.getEntity().getContent());
-	                BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(new File("/Users/ricktseng/backendloadPDF.pdf")));
-	                int inByte;
-	                while((inByte = bis.read()) != -1) 
-	                	bos.write(inByte);
+	                backEndLoadPdf = bis.readAllBytes();
 	                bis.close();
-	                bos.close();
-//	            	getInputStream = response.getEntity().getContent();
 	            }
-	        } finally {
-	            if (response != null) {
-	                response.close();
-	            }
-	            httpclient.close();
 	        }
 			
+	        //將兩個PDF combine
 			Document document = new Document();
-			PdfReader readUrl = new PdfReader(new FileInputStream("/Users/ricktseng/backendloadPDF.pdf"));
+			PdfReader readUrl = new PdfReader(backEndLoadPdf);
 			PdfCopy copy = new PdfSmartCopy(document, new FileOutputStream("/Users/ricktseng/combinePDF.pdf"));
 			PdfImportedPage page;
 			PdfCopy.PageStamp stamp;
 			document.open();
-//			Font ffont = new Font(Font.FontFamily.UNDEFINED, 5, Font.ITALIC);
 			PdfReader[] reader = new PdfReader[3];
+			copy.addDocument(readUrl);
+			copy.freeReader(readUrl);
 			for (int i = 0; i < files.length; i++) {
 	            reader[i] = new PdfReader(new FileInputStream(files[i]));
 	            copy.addDocument(reader[i]);
 	            copy.freeReader(reader[i]);
 	            reader[i].close();
 	        }
-			copy.addDocument(readUrl);
-			copy.freeReader(readUrl);
 			readUrl.close();
 			document.close();
+			//將PDF加上footer
 			PdfReader reader2 = new PdfReader(new FileInputStream("/Users/ricktseng/combinePDF.pdf"));
 			copy = new PdfSmartCopy(document, new FileOutputStream("/Users/ricktseng/combinePDFaddFooter.pdf"));
 			document.open();
