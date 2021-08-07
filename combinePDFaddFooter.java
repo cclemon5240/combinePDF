@@ -1,17 +1,48 @@
 package test;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateException;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+
+import org.apache.http.NameValuePair;
+import org.apache.http.client.CookieStore;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.protocol.HttpClientContext;
+import org.apache.http.config.Registry;
+import org.apache.http.config.RegistryBuilder;
+import org.apache.http.conn.socket.ConnectionSocketFactory;
+import org.apache.http.conn.socket.PlainConnectionSocketFactory;
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
+import org.apache.http.cookie.Cookie;
+import org.apache.http.impl.client.BasicCookieStore;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
+import org.apache.http.impl.cookie.BasicClientCookie;
+import org.apache.http.message.BasicNameValuePair;
+import org.apache.http.util.EntityUtils;
 
 import com.itextpdf.text.Document;
 import com.itextpdf.text.DocumentException;
 import com.itextpdf.text.Element;
-import com.itextpdf.text.Font;
 import com.itextpdf.text.Phrase;
-import com.itextpdf.text.pdf.BaseFont;
 import com.itextpdf.text.pdf.ColumnText;
-import com.itextpdf.text.pdf.PdfContentByte;
 import com.itextpdf.text.pdf.PdfCopy;
 import com.itextpdf.text.pdf.PdfImportedPage;
 import com.itextpdf.text.pdf.PdfReader;
@@ -33,53 +64,94 @@ public class combinePDFaddFooter {
 	public static void main(String[] args) {
 		System.out.println("Start!!!");
 		String[] files = {"/Users/ricktseng/a.pdf", "/Users/ricktseng/createSamplePDF2.pdf"};
+		final String urlPath1 = "https://cathaybk.moneydj.com/w/CustFundIDMap.djhtm?FUNDID=0001B011&DownFile=8";
+		final String fmt = "UTF-8";
 		try {
-			// Create a trust manager that does not validate certificate chains
-			TrustManager[] trustAllCerts = new TrustManager[] {new X509TrustManager() {
-				public java.security.cert.X509Certificate[] getAcceptedIssuers() {
-					return null;
-				}
-				public void checkClientTrusted(X509Certificate[] certs, String authType) {
-				}
-				public void checkServerTrusted(X509Certificate[] certs, String authType) {
+			//第一次GET
+			HtmlStructure gethtmlStructure1 = getHTMLbyGet(urlPath1, fmt);
+			String urlPath2 = gethtmlStructure1.getHtmlContent().substring(gethtmlStructure1.getHtmlContent().indexOf("'") + 1, gethtmlStructure1.getHtmlContent().lastIndexOf("'")); 
+			//第二次GET
+			HtmlStructure gethtmlStructure = getHTMLbyGet(urlPath2, fmt);
+			
+			//取得回應form的參數
+			String[] formArr = gethtmlStructure.getHtmlContent().split("<");
+			String urlPath3 = "https://" + gethtmlStructure.getCustomCookie().getDomain() + "/";
+			List<NameValuePair> parameters = new ArrayList<NameValuePair>(0);
+			String key = "";
+			String val = "";
+			for(int i = 1 ;i < formArr.length; i ++) {
+				String[] inputArr = formArr[i].split("\\s");
+				if(i == 1) {
+					for(String input : inputArr) {
+						if(input.startsWith("action=")) {
+							urlPath3 = urlPath3.concat(input.substring(8, input.length() - 1));
+						}
+					}
+				} else {
+					for(String input : inputArr) {
+						if(input.startsWith("id=")) {
+							key = input.substring(4, input.length()-1);
+						} else if(input.startsWith("value=")){
+							val = input.substring(6);
+						}
+					}
+					parameters.add(new BasicNameValuePair(key, val));
 				}
 			}
-			};
+			//SSL驗證跳過
+			PoolingHttpClientConnectionManager connManager = ConnectionManagerBuilder();
+			//Cookie設定
+			BasicCookieStore cookieStore = new BasicCookieStore();
+		    BasicClientCookie cookie = new BasicClientCookie(gethtmlStructure.getCustomCookie().getName(),gethtmlStructure.getCustomCookie().getValue());
+		    cookie.setDomain(gethtmlStructure.getCustomCookie().getDomain());
+		    cookie.setPath("/");
+		    cookieStore.addCookie(cookie);
+			CloseableHttpClient httpclient = HttpClients.custom().setConnectionManager(connManager).setDefaultCookieStore(cookieStore).build();
+			HttpPost httpPost = new HttpPost(urlPath3);
+			UrlEncodedFormEntity formEntity = new UrlEncodedFormEntity(parameters);
+			httpPost.setEntity(formEntity);
+			httpPost.addHeader("Content-type", "application/x-www-form-urlencoded; charset=utf-8");
+			httpPost.setHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.61 Safari/537.36");
+			CloseableHttpResponse response = null;
+	        try {
+	            response = httpclient.execute(httpPost);
+	            if (response.getStatusLine().getStatusCode() == 200) {
+//	            	String content = EntityUtils.toString(response.getEntity(), "UTF-8");
+	                BufferedInputStream bis = new BufferedInputStream(response.getEntity().getContent());
+	                BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(new File("/Users/ricktseng/backendloadPDF.pdf")));
+	                int inByte;
+	                while((inByte = bis.read()) != -1) 
+	                	bos.write(inByte);
+	                bis.close();
+	                bos.close();
+//	            	getInputStream = response.getEntity().getContent();
+	            }
+	        } finally {
+	            if (response != null) {
+	                response.close();
+	            }
+	            httpclient.close();
+	        }
 			
-			// Install the all-trusting trust manager
-			SSLContext sc = SSLContext.getInstance("SSL");
-			sc.init(null, trustAllCerts, new java.security.SecureRandom());
-			HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
-			
-			// Create all-trusting host name verifier
-			HostnameVerifier allHostsValid = new HostnameVerifier() {
-				public boolean verify(String hostname, SSLSession session) {
-					return true;
-				}
-			};
-			
-			// Install the all-trusting host verifier
-			HttpsURLConnection.setDefaultHostnameVerifier(allHostsValid);
 			Document document = new Document();
-//			PdfReader readUrl = new PdfReader("https://cathaybk.moneydj.com/w/CustFundIDMap.djhtm?FUNDID=001B011&DownFile=8");
-			PdfReader readUrl = new PdfReader(new URL("https://cathaybk.moneydj.com/w/CustFundIDMap.djhtm?FUNDID=0001B011&DownFile=8"));
+			PdfReader readUrl = new PdfReader(new FileInputStream("/Users/ricktseng/backendloadPDF.pdf"));
 			PdfCopy copy = new PdfSmartCopy(document, new FileOutputStream("/Users/ricktseng/combinePDF.pdf"));
 			PdfImportedPage page;
 			PdfCopy.PageStamp stamp;
 			document.open();
-			Font ffont = new Font(Font.FontFamily.UNDEFINED, 5, Font.ITALIC);
+//			Font ffont = new Font(Font.FontFamily.UNDEFINED, 5, Font.ITALIC);
 			PdfReader[] reader = new PdfReader[3];
 			for (int i = 0; i < files.length; i++) {
-	            reader[i] = new PdfReader(files[i]);
+	            reader[i] = new PdfReader(new FileInputStream(files[i]));
 	            copy.addDocument(reader[i]);
 	            copy.freeReader(reader[i]);
 	            reader[i].close();
 	        }
 			copy.addDocument(readUrl);
 			copy.freeReader(readUrl);
-			document.close();
 			readUrl.close();
-			PdfReader reader2 = new PdfReader("/Users/ricktseng/combinePDF.pdf");
+			document.close();
+			PdfReader reader2 = new PdfReader(new FileInputStream("/Users/ricktseng/combinePDF.pdf"));
 			copy = new PdfSmartCopy(document, new FileOutputStream("/Users/ricktseng/combinePDFaddFooter.pdf"));
 			document.open();
 			int pageNum = reader2.getNumberOfPages();
@@ -113,4 +185,80 @@ public class combinePDFaddFooter {
 			e.printStackTrace();
 		} 
 	}
+	
+	/**
+     * 抓網頁資料
+     * @param urlPath
+     * @param fmt
+     * @param cookie
+     * @return
+     * @throws IOException
+     */
+    public static HtmlStructure getHTMLbyGet(String urlPath, String fmt) throws IOException{
+    	HttpGet httpGet = new HttpGet(urlPath);
+    	HttpClientContext context = HttpClientContext.create();
+    	HtmlStructure htmlScHtmlStructure = new HtmlStructure();
+    	try(PoolingHttpClientConnectionManager connManager = ConnectionManagerBuilder();
+    			CloseableHttpClient httpclient = HttpClients.custom().setConnectionManager(connManager).build();
+    			CloseableHttpResponse response = httpclient.execute(httpGet,context);) {
+    		if(!context.getCookieStore().getCookies().isEmpty()) {
+    			CookieStore cookieStore = context.getCookieStore();
+    			Cookie customCookie = cookieStore.getCookies()
+    					.stream()
+    					.findFirst()
+    					.orElseThrow(IllegalStateException::new);
+    			htmlScHtmlStructure.setCustomCookie(customCookie);    			
+    		}
+            
+            if (response.getStatusLine().getStatusCode() == 200) {
+                htmlScHtmlStructure.setHtmlContent(EntityUtils.toString(response.getEntity(), fmt));
+            }
+        } catch (KeyManagementException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (NoSuchAlgorithmException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    	
+    	return htmlScHtmlStructure;
+    }
+    
+    /**
+     * 跳過憑證驗證
+     * @return
+     * @throws NoSuchAlgorithmException
+     * @throws KeyManagementException
+     */
+    public static PoolingHttpClientConnectionManager ConnectionManagerBuilder() throws NoSuchAlgorithmException, KeyManagementException {
+        SSLContext sslContext = SSLContext.getInstance("TLSv1.2");
+
+        X509TrustManager trustManager = new X509TrustManager() {
+            @Override
+            public void checkClientTrusted(
+                    java.security.cert.X509Certificate[] paramArrayOfX509Certificate,
+                    String paramString) throws CertificateException {
+            }
+
+            @Override
+            public void checkServerTrusted(
+                    java.security.cert.X509Certificate[] paramArrayOfX509Certificate,
+                    String paramString) throws CertificateException {
+            }
+
+            @Override
+            public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                return null;
+            }
+        };
+        sslContext.init(null, new TrustManager[] { trustManager }, null);
+
+        Registry<ConnectionSocketFactory> socketFactoryRegistry = RegistryBuilder.<ConnectionSocketFactory>create()
+                .register("http", PlainConnectionSocketFactory.INSTANCE)
+                .register("https", new SSLConnectionSocketFactory(sslContext))
+                .build();
+        PoolingHttpClientConnectionManager connManager = new PoolingHttpClientConnectionManager(socketFactoryRegistry);
+
+        return connManager;
+    }
 }
