@@ -55,6 +55,9 @@ https://nakov.com/blog/2009/07/16/disable-certificate-validation-in-java-ssl-con
 
 iText Doc
 https://api.itextpdf.com/iText5/java/5.5.13.2/
+
+HttpClient
+https://segmentfault.com/a/1190000038939795
 */
 public class combinePDFaddFooter {
 
