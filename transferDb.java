@@ -1,5 +1,3 @@
-package com.cathaybk.invf.o0.module;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -30,25 +28,11 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 
-import com.cathay.common.exception.ErrorInputException;
-import com.cathay.common.exception.ModuleException;
-import com.cathay.common.im.util.MessageUtil;
-import com.cathay.common.im.util.VOTool;
-import com.cathay.common.service.ConfigManager;
-import com.cathay.common.util.NumberUtils;
-import com.cathay.common.util.STRING;
-import com.cathay.rpt.RptUtils;
-import com.cathay.util.Transaction;
-import com.cathaybk.invf.dao.INVF_CFG_DEFTYPE_SYS;
-import com.cathaybk.invf.dao.INVF_TRANSFER_TABLE_CHECK;
-import com.cathaybk.invf.dao.INVF_TRANSFER_TABLE_SET;
-import com.igsapp.db.DataSet;
-
 /**
  * <pre>
  * 轉檔比對
  * </pre>
- * @author NT86094
+ * @author XXX
  *
  */
 @SuppressWarnings({ "rawtypes", "unchecked" })
@@ -58,10 +42,10 @@ public class INVFO0_0310_mod {
     private static final Map OUTPUT_COLUMN_MAP = Collections.synchronizedMap(new ListOrderedMap());
 
     /** 暫存檔路徑 */
-    private static final String ROOT_FILE_PATH = ConfigManager.getProperty("com.cathay.util.jasper.JasperUtils.jasperReportSaveRoot");
+    private static final String ROOT_FILE_PATH = ConfigManager.getProperty("XXXX");
 
     /** 根據Transfer_time查詢 */
-    private static final String SQL_QUERY_RESULT_001 = "com.cathaybk.invf.o0.module.INVFO0_0310_mod.SQL_QUERY_RESULT_001";
+    private static final String SQL_QUERY_RESULT_001 = "XXX";
 
     static {
         OUTPUT_COLUMN_MAP.put("TRANSFER_TIME", "轉檔比對時間");
